@@ -6,7 +6,7 @@ pipeline {
         DOCKERHUB_CREDENTIALS = credentials('kprashant007-dockerhub')
         AWS_CREDENTIALS = credentials('awsJenkinsUser')
         AWS_REGION = 'ap-south-1'
-        AWS_EC2_INSTANCE = 'ec2-user@13.234.202.47'
+        AWS_EC2_INSTANCE = 'ec2-user@15.206.27.80'
         IMAGE_NAME = 'hello-world-api'
         IMAGE_TAG = "${env.BUILD_NUMBER}"
     }
