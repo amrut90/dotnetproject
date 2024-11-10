@@ -1,16 +1,18 @@
-# Use .NET Core SDK image to build the application
-FROM mcr.microsoft.com/dotnet/sdk:7.0 AS build-env
+# Use the official .NET Core runtime as the base image
+FROM mcr.microsoft.com/dotnet/runtime:5.0 AS base
 WORKDIR /app
-
-# Copy everything and build
-COPY . ./
-RUN dotnet restore
-RUN dotnet publish -c Release -o out
-
-# Use runtime image to run the application
-FROM mcr.microsoft.com/dotnet/aspnet:7.0
+# Use the official .NET Core SDK as the build image
+FROM mcr.microsoft.com/dotnet/sdk:5.0 AS build
+WORKDIR /src
+COPY ["hello-world-api.csproj", "./"]
+RUN dotnet restore "./hello-world-api.csproj"
+COPY . .
+WORKDIR "/src/"
+RUN dotnet build "hello-world-api.csproj" -c Release -o /app/build
+FROM build AS publish
+RUN dotnet publish "hello-world-api.csproj" -c Release -o /app/publish
+# Build the final image using the base image and the published output
+FROM base AS final
 WORKDIR /app
-COPY --from=build-env /app/out .
-
-# Set the entrypoint
+COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "hello-world-api.dll"]
