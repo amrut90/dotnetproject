@@ -14,7 +14,7 @@ pipeline {
     stages {
         stage('Clone Repository') {
             steps {
-                git 'https://github.com/PrashantKadam098/helloWorld.git'
+                git 'https://github.com/amrut90/dotnetproject.git'
             }
         }
 
