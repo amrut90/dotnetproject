@@ -1,52 +1,67 @@
 pipeline {
     agent any
+
     environment {
-        REPO_NAME = 'amrut90/dotnetproject'
-        DOCKER_IMAGE = "${REPO_NAME}:${BUILD_ID}"
-        AWS_EC2_HOST = 'ec2-user@3.111.219.92'
+        // Docker Hub credentials
+        DOCKERHUB_CREDENTIALS = credentials('kprashant007-dockerhub')
+        AWS_CREDENTIALS = credentials('awsJenkinsUser')
+        AWS_REGION = 'ap-south-1'
+        AWS_EC2_INSTANCE = 'ec2-user@13.234.202.47'
+        IMAGE_NAME = 'hello-world-api'
+        IMAGE_TAG = "${env.BUILD_NUMBER}"
     }
+
     stages {
         stage('Clone Repository') {
             steps {
-                // Cloning the GitHub repository
-                git branch: 'main', url: 'https://github.com/amrut90/dotnetproject.git'
+                git 'https://github.com/PrashantKadam098/helloWorld.git'
             }
         }
-        stage('Build .NET Core API') {
+
+        stage('Build Docker Image') {
             steps {
-                // Build the application
-                sh 'dotnet build'
-            }
-        }
-        stage('Dockerize Application') {
-            steps {
-                // Build Docker image
-                sh "docker build -t ${DOCKER_IMAGE} ."
-            }
-        }
-        stage('Push Docker Image') {
-            steps {
-                // Login to Docker Hub and push image
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
-                    sh "docker push ${DOCKER_IMAGE}"
+                script {
+                    // Build the Docker image
+                    sh 'docker build -t ${DOCKERHUB_CREDENTIALS_USR}/${IMAGE_NAME}:${IMAGE_TAG} .'
                 }
             }
         }
+
+        stage('Push Docker Image to Docker Hub') {
+            steps {
+                script {
+                    // Log in to Docker Hub
+                    withDockerRegistry([credentialsId: 'dockerhub-credentials', url: 'https://index.docker.io/v1/']) {
+                        // Push the Docker image
+                        sh 'docker push ${DOCKERHUB_CREDENTIALS_USR}/${IMAGE_NAME}:${IMAGE_TAG}'
+                    }
+                }
+            }
+        }
+
         stage('Deploy to AWS EC2') {
             steps {
-                sshagent(['aws-ec2-ssh']) {
-                    // Pull and run the Docker image on EC2
-                    sh """
-                    ssh -o StrictHostKeyChecking=no ${AWS_EC2_HOST} 'docker pull ${DOCKER_IMAGE} && docker stop netcore-api || true && docker rm netcore-api || true && docker run -d -p 5000:80 --name netcore-api ${DOCKER_IMAGE}'
-                    """
+                script {
+                    // Deploy to AWS EC2 instance
+                    sh '''
+                        ssh -o StrictHostKeyChecking=no -i /path/to/your/private-key.pem ${AWS_EC2_INSTANCE} << EOF
+                        docker pull ${DOCKERHUB_CREDENTIALS_USR}/${IMAGE_NAME}:${IMAGE_TAG}
+                        docker stop myapi || true
+                        docker rm myapi || true
+                        docker run -d --name myapi -p 80:80 ${DOCKERHUB_CREDENTIALS_USR}/${IMAGE_NAME}:${IMAGE_TAG}
+                        EOF
+                    '''
                 }
             }
         }
     }
+
     post {
-        always {
-            cleanWs()
+        success {
+            echo "Build and deployment completed successfully!"
+        }
+        failure {
+            echo "There was an error in the build or deployment process."
         }
     }
 }
